@@ -1,3 +1,4 @@
+use avian2d::{PhysicsPlugins, dynamics::integrator::Gravity};
 use bevy::{
     core_pipeline::tonemapping::{DebandDither, Tonemapping},
     feathers::{FeathersPlugins, dark_theme::create_dark_theme, palette::BLACK, theme::UiTheme},
@@ -5,19 +6,28 @@ use bevy::{
     prelude::*,
 };
 
+#[cfg(debug_assertions)]
+use avian2d::debug_render::PhysicsDebugPlugin;
+
 mod cursor;
 mod player;
 mod states;
 mod ui;
 
 fn main() {
-    App::new()
-        .insert_resource(UiTheme(create_dark_theme()))
+    let mut app = App::new();
+    app.insert_resource(UiTheme(create_dark_theme()))
         .insert_resource(ClearColor(BLACK.into()))
         .add_plugins((DefaultPlugins, FeathersPlugins))
+        .add_plugins(PhysicsPlugins::default())
+        .insert_resource(Gravity(Vec2::ZERO))
         .add_plugins((cursor::plugin, states::plugin, ui::plugin, player::plugin))
-        .add_systems(Startup, spawn_camera)
-        .run();
+        .add_systems(Startup, spawn_camera);
+
+    #[cfg(debug_assertions)]
+    app.add_plugins(PhysicsDebugPlugin);
+
+    app.run();
 }
 
 fn spawn_camera(mut commands: Commands) {
