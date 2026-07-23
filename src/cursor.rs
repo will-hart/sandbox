@@ -21,7 +21,17 @@ impl MouseData {
             return Vec2::ZERO;
         };
 
-        pos - self.window_size / 2.0
+        self.relative_pos(pos)
+    }
+
+    /// Gets the position of the given position relative to the window center
+    pub fn relative_pos(&self, v: Vec2) -> Vec2 {
+        v - self.half_window()
+    }
+
+    #[inline(always)]
+    pub fn half_window(&self) -> Vec2 {
+        self.window_size / 2.0
     }
 }
 
