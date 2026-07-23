@@ -18,12 +18,46 @@ fn container() -> impl Scene {
         DespawnOnExit<GameState>(GameState::InGame)
         Mesh2d(asset_value(Rectangle::new(container_w, container_h).to_ring(thickness)))
         MeshMaterial2d<ColorMaterial>(asset_value(ColorMaterial::from_color(color)))
-        template_value(RigidBody::Static)
-        template_value(Collider::rectangle(container_w + thickness / 2.0, container_h + thickness / 2.0))
         Children [
             (
                 Mesh2d(asset_value(Circle::new(30.0)))
                 MeshMaterial2d<ColorMaterial>(asset_value(ColorMaterial::from_color(color)))
+            ),
+            (
+                template_value(RigidBody::Static)
+                Collider::rectangle(20.0, container_h)
+                Transform {
+                    translation: Vec2 {
+                        x: {container_w / 2.0 + 10.0}
+                    }
+                }
+            ),
+            (
+                template_value(RigidBody::Static)
+                Collider::rectangle(20.0, container_h)
+                Transform {
+                    translation: Vec2 {
+                        x: {-container_w / 2.0 - 10.0}
+                    }
+                }
+            ),
+            (
+                template_value(RigidBody::Static)
+                Collider::rectangle(container_w + 40.0, 20.0)
+                Transform {
+                    translation: Vec2 {
+                        y: {-container_h / 2.0 - 10.0}
+                    }
+                }
+            ),
+            (
+                template_value(RigidBody::Static)
+                Collider::rectangle(container_w + 40.0, 20.0)
+                Transform {
+                    translation: Vec2 {
+                        y: {container_h / 2.0 + 10.0}
+                    }
+                }
             )
         ]
     }

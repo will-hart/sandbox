@@ -11,6 +11,7 @@ use avian2d::debug_render::PhysicsDebugPlugin;
 
 mod container;
 mod cursor;
+mod enemy;
 mod player;
 mod states;
 mod ui;
@@ -25,6 +26,7 @@ fn main() {
         .add_plugins((
             container::plugin,
             cursor::plugin,
+            enemy::plugin,
             states::plugin,
             ui::plugin,
             player::plugin,

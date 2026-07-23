@@ -43,15 +43,6 @@ pub struct Player;
 
 fn player() -> impl Scene {
     let material = ColorMaterial::from_color(Srgba::new(1.9, 1.1, 1.1, 1.0));
-    let rigid_body = RigidBody::Dynamic;
-    let collider = Collider::polyline(
-        vec![
-            Vec2::new(-20.0, 45.0),
-            Vec2::new(0.0, 48.0),
-            Vec2::new(20.0, 45.0),
-        ],
-        None,
-    );
 
     bsn! {
         Player
@@ -63,8 +54,15 @@ fn player() -> impl Scene {
         MeshMaterial2d<ColorMaterial>(asset_value(material))
         Children [
             (
-                template_value(rigid_body)
-                template_value(collider)
+                template_value(RigidBody::Dynamic)
+                Collider::polyline(
+                    vec![
+                        Vec2::new(-20.0, 45.0),
+                        Vec2::new(0.0, 48.0),
+                        Vec2::new(20.0, 45.0),
+                    ],
+                    None,
+                )
             )
         ]
     }
