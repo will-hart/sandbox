@@ -6,8 +6,17 @@ use crate::states::GameState;
 pub(super) fn plugin(app: &mut App) {
     info!("Loading container plugin");
 
-    app.add_systems(OnEnter(GameState::InGame), container.spawn());
+    app.add_systems(OnEnter(GameState::InGame), container.spawn())
+        .add_systems(Update, rotating_container);
 }
+
+#[derive(Debug, Clone, Component, Default, Reflect)]
+#[reflect(Component)]
+pub struct Container;
+
+#[derive(Debug, Clone, Component, Default, Reflect)]
+#[reflect(Component)]
+pub struct RotatingContainer;
 
 fn container() -> impl Scene {
     let (container_w, container_h) = (500.0, 500.0);
@@ -15,50 +24,35 @@ fn container() -> impl Scene {
     let color = Srgba::new(1.1, 1.3, 2.0, 1.0);
 
     bsn! {
+        Container
         DespawnOnExit<GameState>(GameState::InGame)
+        template_value(RigidBody::Static)
         Mesh2d(asset_value(Rectangle::new(container_w, container_h).to_ring(thickness)))
         MeshMaterial2d<ColorMaterial>(asset_value(ColorMaterial::from_color(color)))
+        Collider::polyline(
+            vec![
+                Vec2::new(-container_w / 2.0, -container_h / 2.0),
+                Vec2::new(container_w / 2.0, -container_h / 2.0),
+                Vec2::new(container_w / 2.0, container_h / 2.0),
+                Vec2::new(-container_w / 2.0, container_h / 2.0),
+                Vec2::new(-container_w / 2.0, -container_h / 2.0),
+            ],
+            None
+        )
         Children [
             (
                 Mesh2d(asset_value(Circle::new(30.0)))
                 MeshMaterial2d<ColorMaterial>(asset_value(ColorMaterial::from_color(color)))
-            ),
-            (
-                template_value(RigidBody::Static)
-                Collider::rectangle(20.0, container_h)
-                Transform {
-                    translation: Vec2 {
-                        x: {container_w / 2.0 + 10.0}
-                    }
-                }
-            ),
-            (
-                template_value(RigidBody::Static)
-                Collider::rectangle(20.0, container_h)
-                Transform {
-                    translation: Vec2 {
-                        x: {-container_w / 2.0 - 10.0}
-                    }
-                }
-            ),
-            (
-                template_value(RigidBody::Static)
-                Collider::rectangle(container_w + 40.0, 20.0)
-                Transform {
-                    translation: Vec2 {
-                        y: {-container_h / 2.0 - 10.0}
-                    }
-                }
-            ),
-            (
-                template_value(RigidBody::Static)
-                Collider::rectangle(container_w + 40.0, 20.0)
-                Transform {
-                    translation: Vec2 {
-                        y: {container_h / 2.0 + 10.0}
-                    }
-                }
             )
         ]
+    }
+}
+
+fn rotating_container(
+    time: Res<Time>,
+    mut containers: Query<&mut Transform, With<RotatingContainer>>,
+) {
+    for mut container in &mut containers {
+        container.rotate_axis(Dir3::Z, 0.1 * time.delta_secs());
     }
 }
