@@ -9,6 +9,7 @@ use bevy::{
 #[cfg(debug_assertions)]
 use avian2d::debug_render::PhysicsDebugPlugin;
 
+mod container;
 mod cursor;
 mod player;
 mod states;
@@ -21,7 +22,13 @@ fn main() {
         .add_plugins((DefaultPlugins, FeathersPlugins))
         .add_plugins(PhysicsPlugins::default())
         .insert_resource(Gravity(Vec2::ZERO))
-        .add_plugins((cursor::plugin, states::plugin, ui::plugin, player::plugin))
+        .add_plugins((
+            container::plugin,
+            cursor::plugin,
+            states::plugin,
+            ui::plugin,
+            player::plugin,
+        ))
         .add_systems(Startup, spawn_camera);
 
     #[cfg(debug_assertions)]
@@ -32,7 +39,7 @@ fn main() {
 
 fn spawn_camera(mut commands: Commands) {
     let mut bloom = Bloom::default();
-    bloom.intensity = 0.3;
+    bloom.intensity = 0.4;
 
     // spawn main camera
     commands.spawn((

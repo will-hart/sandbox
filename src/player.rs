@@ -42,7 +42,7 @@ impl Default for PlayerTimers {
 pub struct Player;
 
 fn player() -> impl Scene {
-    let material = ColorMaterial::from_color(Srgba::new(1.5, 0.1, 0.1, 1.0));
+    let material = ColorMaterial::from_color(Srgba::new(1.9, 1.1, 1.1, 1.0));
     let rigid_body = RigidBody::Dynamic;
     let collider = Collider::polyline(
         vec![
