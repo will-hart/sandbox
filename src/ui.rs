@@ -64,6 +64,7 @@ fn game_over() -> impl Scene {
             width: percent(100),
             height: percent(100),
             position_type: PositionType::Absolute,
+            flex_direction: FlexDirection::Column,
             top: px(0),
             left: px(0),
             justify_content: JustifyContent::Center,
@@ -97,7 +98,7 @@ fn game_over() -> impl Scene {
                 BackgroundColor(RED)
                 on(|_: On<Activate>, mut next_state: ResMut<NextState<GameState>>| {
                     info!("Game Over - main menu clicked");
-                    next_state.set(GameState::InGame);
+                    next_state.set(GameState::MainMenu);
                 })
             )
         ]
