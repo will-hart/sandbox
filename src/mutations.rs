@@ -19,7 +19,8 @@ pub(super) fn plugin(app: &mut App) {
                 watch_mutation_timers,
                 attract_enemy_to_center,
                 rotating_container,
-            ),
+            )
+                .run_if(in_state(GameState::InGame)),
         );
 }
 

@@ -8,7 +8,22 @@ use crate::states::GameState;
 
 pub(super) fn plugin(app: &mut App) {
     info!("Loading enemy plugin");
-    app.add_systems(OnEnter(GameState::InGame), enemy.spawn());
+    app.init_resource::<EnemySpeed>()
+        .add_systems(OnEnter(GameState::InGame), enemy.spawn())
+        .add_systems(
+            Update,
+            normalise_enemy_velocity_by_speed.run_if(in_state(GameState::InGame)),
+        );
+}
+
+#[derive(Debug, Clone, Copy, Resource, Reflect)]
+#[reflect(Resource)]
+pub struct EnemySpeed(pub f32);
+
+impl Default for EnemySpeed {
+    fn default() -> Self {
+        Self(200.0)
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default, Component, Reflect)]
@@ -36,5 +51,14 @@ fn enemy() -> impl Scene {
                 y: 80.0,
             }
         }
+    }
+}
+
+fn normalise_enemy_velocity_by_speed(
+    speed: Res<EnemySpeed>,
+    mut enemies: Query<&mut LinearVelocity, With<Enemy>>,
+) {
+    for mut linvel in &mut enemies {
+        linvel.0 = linvel.0.normalize_or_zero() * speed.0;
     }
 }
