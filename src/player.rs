@@ -5,47 +5,30 @@ use crate::{cursor::MouseData, states::GameState};
 
 pub(super) fn plugin(app: &mut App) {
     info!("Loading player plugin");
-    app.init_resource::<PlayerTimers>()
-        .add_systems(
-            OnEnter(GameState::InGame),
-            (player.spawn(), reset_player_timers),
-        )
+    app.add_systems(OnEnter(GameState::InGame), player.spawn())
         .add_systems(Update, position_player.run_if(in_state(GameState::InGame)));
-}
-
-fn reset_player_timers(mut timers: ResMut<PlayerTimers>) {
-    timers.area_reduce.reset();
-    timers.enemy_split.reset();
-    timers.player_attack.reset();
-}
-
-#[derive(Debug, Clone, Resource, Reflect)]
-#[reflect(Resource)]
-pub struct PlayerTimers {
-    pub enemy_split: Timer,
-    pub area_reduce: Timer,
-    pub player_attack: Timer,
-}
-
-impl Default for PlayerTimers {
-    fn default() -> Self {
-        Self {
-            enemy_split: Timer::from_seconds(5.0, TimerMode::Repeating),
-            area_reduce: Timer::from_seconds(10.0, TimerMode::Repeating),
-            player_attack: Timer::from_seconds(8.0, TimerMode::Repeating),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, Component, Default, Reflect)]
 #[reflect(Component)]
 pub struct Player;
 
+#[derive(Debug, Clone, Copy, Component, Reflect)]
+#[reflect(Component)]
+pub struct PlayerHealthCountdown(pub u8);
+
+impl Default for PlayerHealthCountdown {
+    fn default() -> Self {
+        Self(6)
+    }
+}
+
 fn player() -> impl Scene {
     let material = ColorMaterial::from_color(Srgba::new(1.9, 1.1, 1.1, 1.0));
 
     bsn! {
         Player
+        PlayerHealthCountdown
         DespawnOnExit<GameState>(GameState::InGame)
         Mesh2d(asset_value(Ring::new(
             CircularSector::new(50.0, 0.4),

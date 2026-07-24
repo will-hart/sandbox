@@ -6,17 +6,12 @@ use crate::states::GameState;
 pub(super) fn plugin(app: &mut App) {
     info!("Loading container plugin");
 
-    app.add_systems(OnEnter(GameState::InGame), container.spawn())
-        .add_systems(Update, rotating_container);
+    app.add_systems(OnEnter(GameState::InGame), container.spawn());
 }
 
 #[derive(Debug, Clone, Component, Default, Reflect)]
 #[reflect(Component)]
 pub struct Container;
-
-#[derive(Debug, Clone, Component, Default, Reflect)]
-#[reflect(Component)]
-pub struct RotatingContainer;
 
 fn container() -> impl Scene {
     let (container_w, container_h) = (500.0, 500.0);
@@ -45,14 +40,5 @@ fn container() -> impl Scene {
                 MeshMaterial2d<ColorMaterial>(asset_value(ColorMaterial::from_color(color)))
             )
         ]
-    }
-}
-
-fn rotating_container(
-    time: Res<Time>,
-    mut containers: Query<&mut Transform, With<RotatingContainer>>,
-) {
-    for mut container in &mut containers {
-        container.rotate_axis(Dir3::Z, 0.1 * time.delta_secs());
     }
 }

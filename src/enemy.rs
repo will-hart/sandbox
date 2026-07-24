@@ -1,10 +1,6 @@
 use avian2d::{
     collision::collider::Collider,
-    dynamics::rigid_body::{
-        CoefficientCombine, LinearVelocity, Restitution, RigidBody,
-        forces::{Forces, WriteRigidBodyForces},
-    },
-    physics_transform::Position,
+    dynamics::rigid_body::{CoefficientCombine, LinearVelocity, Restitution, RigidBody},
 };
 use bevy::prelude::*;
 
@@ -12,14 +8,12 @@ use crate::states::GameState;
 
 pub(super) fn plugin(app: &mut App) {
     info!("Loading enemy plugin");
-    app.add_systems(OnEnter(GameState::InGame), enemy.spawn())
-        .add_systems(Update, attract_enemy_to_center);
+    app.add_systems(OnEnter(GameState::InGame), enemy.spawn());
 }
 
 #[derive(Debug, Clone, Copy, Default, Component, Reflect)]
 #[reflect(Component)]
 pub struct Enemy;
-
 fn enemy() -> impl Scene {
     let color = Srgba::new(1.7, 1.0, 1.8, 1.0);
     let enemy_radius = 15.0;
@@ -42,13 +36,5 @@ fn enemy() -> impl Scene {
                 y: 80.0,
             }
         }
-    }
-}
-
-fn attract_enemy_to_center(mut enemies: Query<(Forces, &Position), With<Enemy>>) {
-    for (mut enemy, pos) in enemies.iter_mut() {
-        let force_dir = -pos.0;
-        let force = force_dir.normalize_or_zero() * 400.;
-        enemy.apply_linear_impulse(force);
     }
 }
