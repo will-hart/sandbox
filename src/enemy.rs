@@ -1,5 +1,5 @@
 use avian2d::{
-    collision::collider::Collider,
+    collision::{collider::Collider, collision_events::CollisionEventsEnabled},
     dynamics::rigid_body::{
         AngularDamping, CoefficientCombine, LinearVelocity, Restitution, RigidBody,
     },
@@ -62,6 +62,7 @@ fn enemy() -> impl Scene {
         template_value(RigidBody::Dynamic)
         Collider::round_rectangle(enemy_radius, enemy_radius, 3.0)
         AngularDamping(1.9)
+        CollisionEventsEnabled
         Restitution {
             coefficient: 1.0,
             combine_rule: CoefficientCombine::Max
@@ -90,6 +91,7 @@ pub fn split_enemy(parent: Entity, translation: Vec3) -> impl Scene {
         template_value(RigidBody::Dynamic)
         Collider::round_rectangle(enemy_radius, enemy_radius, 3.0)
         AngularDamping(1.9)
+        CollisionEventsEnabled
         Restitution {
             coefficient: 1.0,
             combine_rule: CoefficientCombine::Max

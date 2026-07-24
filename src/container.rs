@@ -35,11 +35,5 @@ fn container() -> impl Scene {
             ],
             None
         )
-        Children [
-            (
-                Mesh2d(asset_value(Circle::new(30.0)))
-                MeshMaterial2d<ColorMaterial>(asset_value(ColorMaterial::from_color(color)))
-            )
-        ]
     }
 }

@@ -95,11 +95,17 @@ fn update_countdown_list(
     // now prepare a list of countdown items
     let mut counters = vec![
         (
-            format!("Mutate: {}", timers.enemy_mutation.remaining_secs().round()),
+            format!(
+                "{}s - Mutate",
+                timers.enemy_mutation.remaining_secs().round()
+            ),
             timers.enemy_mutation.remaining_secs(),
         ),
         (
-            format!("Defend: {}", timers.player_attack.remaining_secs().round()),
+            format!(
+                "{}s - Defend",
+                timers.player_attack.remaining_secs().round()
+            ),
             timers.player_attack.remaining_secs(),
         ),
     ];
@@ -108,13 +114,13 @@ fn update_countdown_list(
             .iter()
             .map(|split| {
                 (
-                    format!("Fork {}", split.time_remaining.round()),
+                    format!("{}s - Fork", split.time_remaining.round()),
                     split.time_remaining.max(0.0),
                 )
             })
             .collect::<Vec<_>>(),
     );
-    counters.sort_by(|a, b| b.1.total_cmp(&a.1));
+    counters.sort_by(|a, b| a.1.total_cmp(&b.1));
 
     commands
         .entity(*parent)

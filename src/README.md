@@ -14,4 +14,5 @@
 
 - [ ] Player takes damage
 - [ ] JUUUIIIIICE
-- [ ] countdown list
+- [x] countdown list
+- [ ] all mutations countdown (and remove "defend" action)
