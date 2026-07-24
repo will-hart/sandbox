@@ -6,7 +6,7 @@ use bevy::prelude::*;
 
 use crate::states::GameState;
 
-pub const DEFAULT_ENEMY_SPEED: f32 = 200.0;
+pub const DEFAULT_ENEMY_SPEED: f32 = 350.0;
 
 pub(super) fn plugin(app: &mut App) {
     info!("Loading enemy plugin");
@@ -38,10 +38,10 @@ fn enemy() -> impl Scene {
     bsn! {
         Enemy
         DespawnOnExit<GameState>(GameState::InGame)
-        Mesh2d(asset_value(Circle::new(enemy_radius)))
+        Mesh2d(asset_value(Rectangle::new(enemy_radius, enemy_radius)))
         MeshMaterial2d<ColorMaterial>(asset_value(ColorMaterial::from_color(color)))
         template_value(RigidBody::Dynamic)
-        Collider::circle(enemy_radius)
+        Collider::round_rectangle(enemy_radius, enemy_radius, 3.0)
         Restitution {
             coefficient: 1.0,
             combine_rule: CoefficientCombine::Max
