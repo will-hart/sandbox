@@ -50,16 +50,23 @@ fn game_ui() -> impl Scene {
     bsn! {
         DespawnOnExit<GameState>(GameState::InGame)
         Node {
-            width: percent(100),
-            height: px(30),
+            width: px(300),
+            height: percent(100),
+            padding: px(10),
             position_type: PositionType::Absolute,
             top: px(0),
             left: px(0),
-            justify_content: JustifyContent::Center,
-            align_items: AlignItems::Center
+            flex_direction: FlexDirection::Column,
         }
         Children [
-            Text("Menu")
+            Text("Countdowns"),
+            (
+                Node {
+                    height: px(60),
+                    width: px(200),
+                }
+                BackgroundColor(WHITE)
+            )
         ]
     }
 }

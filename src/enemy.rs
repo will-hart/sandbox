@@ -6,6 +6,8 @@ use bevy::prelude::*;
 
 use crate::states::GameState;
 
+pub const DEFAULT_ENEMY_SPEED: f32 = 200.0;
+
 pub(super) fn plugin(app: &mut App) {
     info!("Loading enemy plugin");
     app.init_resource::<EnemySpeed>()
@@ -22,7 +24,7 @@ pub struct EnemySpeed(pub f32);
 
 impl Default for EnemySpeed {
     fn default() -> Self {
-        Self(200.0)
+        Self(DEFAULT_ENEMY_SPEED)
     }
 }
 

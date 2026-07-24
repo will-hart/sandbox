@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 avian2d = "0.7"
 bevy = { version = "0.19", default-features = false, features = ["2d", "ui", "bevy_feathers", "bevy_dev_tools", "tonemapping_luts", "zstd_rust"] }
+fastrand = "2.5.0"

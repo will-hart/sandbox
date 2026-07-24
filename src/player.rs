@@ -35,19 +35,15 @@ fn player() -> impl Scene {
             CircularSector::new(46.0, 0.4),
         )))
         MeshMaterial2d<ColorMaterial>(asset_value(material))
-        Children [
-            (
-                template_value(RigidBody::Dynamic)
-                Collider::polyline(
-                    vec![
-                        Vec2::new(-20.0, 45.0),
-                        Vec2::new(0.0, 48.0),
-                        Vec2::new(20.0, 45.0),
-                    ],
-                    None,
-                )
-            )
-        ]
+        template_value(RigidBody::Dynamic)
+        Collider::polyline(
+            vec![
+                Vec2::new(-20.0, 45.0),
+                Vec2::new(0.0, 48.0),
+                Vec2::new(20.0, 45.0),
+            ],
+            None,
+        )
     }
 }
 

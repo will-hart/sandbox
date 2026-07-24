@@ -1,10 +1,14 @@
+use std::time::Duration;
+
 use avian2d::{
     dynamics::rigid_body::forces::{Forces, WriteRigidBodyForces},
     physics_transform::Position,
 };
 use bevy::prelude::*;
 
-use crate::states::GameState;
+use crate::{enemy::Enemy, states::GameState};
+
+mod commands;
 
 pub(super) fn plugin(app: &mut App) {
     info!("Loading mutations plugin");
@@ -21,7 +25,8 @@ pub(super) fn plugin(app: &mut App) {
                 rotating_container,
             )
                 .run_if(in_state(GameState::InGame)),
-        );
+        )
+        .add_observer(handle_adding_or_removing_mutations);
 }
 
 #[derive(Debug, Clone, Resource, Reflect)]
@@ -40,9 +45,19 @@ impl Default for MutationTimers {
     }
 }
 
+impl MutationTimers {
+    pub fn tick(&mut self, amount: f32) {
+        let duration = Duration::from_secs_f32(amount);
+        self.enemy_mutation.tick(duration);
+        self.player_attack.tick(duration);
+    }
+}
+
 /// A set of potential mutations that an enemy or environment can have
 #[derive(Clone, Copy, Debug, Reflect, Hash, Eq, PartialEq)]
 pub enum EnemyMutations {
+    EnemySpeed,
+    FasterMutationTimer,
     AttractedToTarget,
     RotatingContainer,
 }
@@ -54,6 +69,12 @@ pub struct CurrentMutations {
     pub mutations: Vec<EnemyMutations>,
 }
 
+#[derive(Clone, Copy, Debug, Event)]
+pub enum MutationEffect {
+    Apply(EnemyMutations),
+    Remove(EnemyMutations),
+}
+
 fn insert_mutations_resource(mut commands: Commands) {
     commands.insert_resource(CurrentMutations::default());
 }
@@ -63,13 +84,54 @@ fn reset_mutation_timers(mut timers: ResMut<MutationTimers>) {
     timers.player_attack.reset();
 }
 
-fn watch_mutation_timers(timers: Res<MutationTimers>) {
+fn watch_mutation_timers(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut timers: ResMut<MutationTimers>,
+    mut mutations: ResMut<CurrentMutations>,
+) {
+    timers.tick(time.delta_secs());
+
     if timers.enemy_mutation.just_finished() {
-        info!("Add enemy mutation");
+        // pick a random mutation to add
+        if let Some(item) = fastrand::choice([
+            EnemyMutations::EnemySpeed,
+            EnemyMutations::FasterMutationTimer,
+            EnemyMutations::AttractedToTarget,
+            EnemyMutations::RotatingContainer,
+        ]) {
+            info!("Add enemy mutation - {item:?}");
+            commands.trigger(MutationEffect::Apply(item));
+            mutations.mutations.push(item);
+        }
     }
 
     if timers.player_attack.just_finished() {
-        info!("Remove enemy mutation");
+        if let Some(idx) =
+            fastrand::choice(mutations.mutations.iter().enumerate().map(|(idx, _)| idx))
+        {
+            let mutation = mutations.mutations.remove(idx);
+            info!("Remove enemy mutation - {mutation:?}");
+            commands.trigger(MutationEffect::Remove(mutation));
+        };
+    }
+}
+
+fn handle_adding_or_removing_mutations(trigger: On<MutationEffect>, mut commands: Commands) {
+    let event = trigger.event();
+    match event {
+        MutationEffect::Apply(mutation) => match mutation {
+            EnemyMutations::EnemySpeed => commands.queue(commands::ApplyEnemySpeedMutation),
+            EnemyMutations::FasterMutationTimer => todo!(),
+            EnemyMutations::AttractedToTarget => todo!(),
+            EnemyMutations::RotatingContainer => todo!(),
+        },
+        MutationEffect::Remove(mutation) => match mutation {
+            EnemyMutations::EnemySpeed => commands.queue(commands::RemoveEnemySpeedMutation),
+            EnemyMutations::FasterMutationTimer => todo!(),
+            EnemyMutations::AttractedToTarget => todo!(),
+            EnemyMutations::RotatingContainer => todo!(),
+        },
     }
 }
 
