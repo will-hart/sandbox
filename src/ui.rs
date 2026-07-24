@@ -1,17 +1,21 @@
 use bevy::{
     color::palettes::css::RED,
-    feathers::{controls::FeathersButton, palette::WHITE},
+    feathers::{controls::FeathersButton, palette::WHITE, theme::ThemedText},
     prelude::*,
     ui_widgets::Activate,
 };
 
-use crate::states::GameState;
+use crate::{mutations::MutationTimers, states::GameState};
 
 pub(super) fn plugin(app: &mut App) {
     info!("Loading UI plugin");
 
     app.add_systems(OnEnter(GameState::MainMenu), menu.spawn())
-        .add_systems(OnEnter(GameState::InGame), game_ui.spawn());
+        .add_systems(OnEnter(GameState::InGame), game_ui.spawn())
+        .add_systems(
+            Update,
+            update_countdown_list.run_if(in_state(GameState::InGame)),
+        );
 }
 
 fn menu() -> impl Scene {
@@ -46,6 +50,14 @@ fn menu() -> impl Scene {
     }
 }
 
+#[derive(Debug, Clone, Copy, Default, Component, Reflect)]
+#[reflect(Component)]
+struct CountdownTimerList;
+
+#[derive(Debug, Clone, Default, Component, Reflect)]
+#[reflect(Component)]
+struct CountdownTimerItem;
+
 fn game_ui() -> impl Scene {
     bsn! {
         DespawnOnExit<GameState>(GameState::InGame)
@@ -58,15 +70,44 @@ fn game_ui() -> impl Scene {
             left: px(0),
             flex_direction: FlexDirection::Column,
         }
+        CountdownTimerList
         Children [
-            Text("Countdowns"),
             (
-                Node {
-                    height: px(60),
-                    width: px(200),
-                }
-                BackgroundColor(WHITE)
+                Text("Countdowns")
+                ThemedText
+            ),
+            (
+                CountdownTimerItem
+                Text("")
+                ThemedText
+            ),
+            (
+                CountdownTimerItem
+                Text("")
+                ThemedText
             )
         ]
+    }
+}
+
+fn update_countdown_list(
+    timers: Res<MutationTimers>,
+    mut items: Query<&mut Text, With<CountdownTimerItem>>,
+) {
+    // now prepare a list of countdown items
+    let mut counters = vec![
+        (
+            format!("Mutate: {}", timers.enemy_mutation.remaining_secs().round()),
+            timers.enemy_mutation.remaining_secs(),
+        ),
+        (
+            format!("Defend: {}", timers.player_attack.remaining_secs().round()),
+            timers.player_attack.remaining_secs(),
+        ),
+    ];
+    counters.sort_by(|a, b| b.1.total_cmp(&a.1));
+
+    for (mut text, (title, _)) in items.iter_mut().zip(counters.into_iter()) {
+        text.0 = title;
     }
 }
