@@ -3,7 +3,7 @@ use std::time::Duration;
 use bevy::prelude::*;
 
 use crate::{
-    enemy::{DEFAULT_ENEMY_SPEED, Enemy, EnemySpeed},
+    enemy::{DEFAULT_ENEMY_SPEED, Enemy, EnemySpeed, SplitEnemy, split_enemy},
     mutations::{
         EnemyAttractedToTarget, INITIAL_ENEMY_MUTATION_DURATION, MutationTimers, RotatingContainer,
     },
@@ -173,6 +173,49 @@ impl Command for RemoveRotatingContainerMutation {
         let mut containers_query = world.query::<&mut RotatingContainer>();
         for mut container in containers_query.iter_mut(world) {
             container.0 = container.0.saturating_sub(1);
+        }
+    }
+}
+
+// Split
+
+pub struct ApplySplitMutation;
+
+impl Command for ApplySplitMutation {
+    type Out = ();
+
+    fn apply(self, world: &mut World) -> Self::Out {
+        let mut enemies_query = world.query::<(Entity, &Transform, &Enemy)>();
+        let Some((entity, tx, _)) = enemies_query.iter(world).next() else {
+            warn!("No enemy found for ApplySplitMutation, aborting");
+            return;
+        };
+
+        let tx = tx.translation.clone();
+        world.commands().spawn_scene(split_enemy(entity, tx));
+    }
+}
+
+pub struct RemoveSplitMutation;
+
+impl Command for RemoveSplitMutation {
+    type Out = ();
+
+    fn apply(self, world: &mut World) -> Self::Out {
+        let mut query = world.query::<(Entity, &SplitEnemy)>();
+        let entities_to_despawn = query
+            .iter(world)
+            .filter_map(|(entity, split)| {
+                if split.time_remaining <= 0.0 {
+                    return Some(entity);
+                }
+
+                None
+            })
+            .collect::<Vec<_>>();
+
+        for entity in &entities_to_despawn {
+            world.commands().entity(*entity).despawn();
         }
     }
 }

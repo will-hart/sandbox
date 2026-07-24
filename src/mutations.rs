@@ -6,7 +6,7 @@ use avian2d::{
 };
 use bevy::prelude::*;
 
-use crate::states::GameState;
+use crate::{enemy::SplitEnemy, states::GameState};
 
 mod commands;
 
@@ -24,6 +24,7 @@ pub(super) fn plugin(app: &mut App) {
             (
                 watch_mutation_timers,
                 attract_enemy_to_center,
+                monitor_split_enemies,
                 rotating_container,
             )
                 .run_if(in_state(GameState::InGame)),
@@ -65,6 +66,7 @@ pub enum EnemyMutations {
     AttractedToTarget,
     FasterMutationTimer,
     RotatingContainer,
+    Split,
 }
 
 #[derive(Clone, Debug, Default, Resource, Reflect)]
@@ -104,6 +106,14 @@ fn watch_mutation_timers(
             EnemyMutations::AttractedToTarget,
             EnemyMutations::FasterMutationTimer,
             EnemyMutations::RotatingContainer,
+            EnemyMutations::Split,
+            EnemyMutations::Split,
+            EnemyMutations::Split,
+            EnemyMutations::Split,
+            EnemyMutations::Split,
+            EnemyMutations::Split,
+            EnemyMutations::Split,
+            EnemyMutations::Split,
         ]) {
             info!("Add enemy mutation - {item:?}");
             commands.trigger(MutationEffect::Apply(item));
@@ -137,6 +147,7 @@ fn handle_adding_or_removing_mutations(trigger: On<MutationEffect>, mut commands
             EnemyMutations::RotatingContainer => {
                 commands.queue(commands::ApplyRotatingContainerMutation)
             }
+            EnemyMutations::Split => commands.queue(commands::ApplySplitMutation),
         },
         MutationEffect::Remove(mutation) => match mutation {
             EnemyMutations::EnemySpeed => commands.queue(commands::RemoveEnemySpeedMutation),
@@ -149,6 +160,7 @@ fn handle_adding_or_removing_mutations(trigger: On<MutationEffect>, mut commands
             EnemyMutations::RotatingContainer => {
                 commands.queue(commands::RemoveRotatingContainerMutation)
             }
+            EnemyMutations::Split => commands.queue(commands::RemoveSplitMutation),
         },
     }
 }
@@ -180,5 +192,21 @@ fn rotating_container(
             continue;
         }
         container.rotate_axis(Dir3::Z, 0.1 * time.delta_secs());
+    }
+}
+
+/// Mutation: monitor split enemies
+fn monitor_split_enemies(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut enemies: Query<(Entity, &mut SplitEnemy)>,
+) {
+    let delta = time.delta_secs();
+    for (entity, mut enemy) in enemies.iter_mut() {
+        enemy.time_remaining -= delta;
+
+        if enemy.time_remaining <= 0. {
+            commands.entity(entity).despawn();
+        }
     }
 }

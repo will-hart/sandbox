@@ -5,7 +5,7 @@ use bevy::{
     ui_widgets::Activate,
 };
 
-use crate::{mutations::MutationTimers, states::GameState};
+use crate::{enemy::SplitEnemy, mutations::MutationTimers, states::GameState};
 
 pub(super) fn plugin(app: &mut App) {
     info!("Loading UI plugin");
@@ -75,25 +75,23 @@ fn game_ui() -> impl Scene {
             (
                 Text("Countdowns")
                 ThemedText
-            ),
-            (
-                CountdownTimerItem
-                Text("")
-                ThemedText
-            ),
-            (
-                CountdownTimerItem
-                Text("")
-                ThemedText
             )
         ]
     }
 }
 
+// spawn new items every frame, who cares, we rollin now
 fn update_countdown_list(
+    mut commands: Commands,
     timers: Res<MutationTimers>,
-    mut items: Query<&mut Text, With<CountdownTimerItem>>,
+    parent: Single<Entity, With<CountdownTimerList>>,
+    existing_items: Query<Entity, With<CountdownTimerItem>>,
+    splits: Query<&SplitEnemy>,
 ) {
+    for item in &existing_items {
+        commands.entity(item).despawn();
+    }
+
     // now prepare a list of countdown items
     let mut counters = vec![
         (
@@ -105,9 +103,31 @@ fn update_countdown_list(
             timers.player_attack.remaining_secs(),
         ),
     ];
+    counters.append(
+        &mut splits
+            .iter()
+            .map(|split| {
+                (
+                    format!("Fork {}", split.time_remaining.round()),
+                    split.time_remaining.max(0.0),
+                )
+            })
+            .collect::<Vec<_>>(),
+    );
     counters.sort_by(|a, b| b.1.total_cmp(&a.1));
 
-    for (mut text, (title, _)) in items.iter_mut().zip(counters.into_iter()) {
-        text.0 = title;
-    }
+    commands
+        .entity(*parent)
+        .queue_spawn_related_scenes::<Children>(bsn_list![{
+            counters
+                .into_iter()
+                .map(|(value, _)| {
+                    bsn! {
+                        CountdownTimerItem
+                        Text(value)
+                        ThemedText
+                    }
+                })
+                .collect::<Vec<_>>()
+        }]);
 }
