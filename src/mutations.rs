@@ -6,9 +6,11 @@ use avian2d::{
 };
 use bevy::prelude::*;
 
-use crate::{enemy::Enemy, states::GameState};
+use crate::states::GameState;
 
 mod commands;
+
+pub const INITIAL_ENEMY_MUTATION_DURATION: f32 = 6.0;
 
 pub(super) fn plugin(app: &mut App) {
     info!("Loading mutations plugin");
@@ -39,7 +41,10 @@ pub struct MutationTimers {
 impl Default for MutationTimers {
     fn default() -> Self {
         Self {
-            enemy_mutation: Timer::from_seconds(5.0, TimerMode::Repeating),
+            enemy_mutation: Timer::from_seconds(
+                INITIAL_ENEMY_MUTATION_DURATION,
+                TimerMode::Repeating,
+            ),
             player_attack: Timer::from_seconds(8.0, TimerMode::Repeating),
         }
     }
@@ -57,8 +62,8 @@ impl MutationTimers {
 #[derive(Clone, Copy, Debug, Reflect, Hash, Eq, PartialEq)]
 pub enum EnemyMutations {
     EnemySpeed,
-    FasterMutationTimer,
     AttractedToTarget,
+    FasterMutationTimer,
     RotatingContainer,
 }
 
@@ -96,8 +101,8 @@ fn watch_mutation_timers(
         // pick a random mutation to add
         if let Some(item) = fastrand::choice([
             EnemyMutations::EnemySpeed,
-            EnemyMutations::FasterMutationTimer,
             EnemyMutations::AttractedToTarget,
+            EnemyMutations::FasterMutationTimer,
             EnemyMutations::RotatingContainer,
         ]) {
             info!("Add enemy mutation - {item:?}");
@@ -107,8 +112,9 @@ fn watch_mutation_timers(
     }
 
     if timers.player_attack.just_finished() {
-        if let Some(idx) =
-            fastrand::choice(mutations.mutations.iter().enumerate().map(|(idx, _)| idx))
+        if !mutations.mutations.is_empty()
+            && let Some(idx) =
+                fastrand::choice(mutations.mutations.iter().enumerate().map(|(idx, _)| idx))
         {
             let mutation = mutations.mutations.remove(idx);
             info!("Remove enemy mutation - {mutation:?}");
@@ -122,15 +128,27 @@ fn handle_adding_or_removing_mutations(trigger: On<MutationEffect>, mut commands
     match event {
         MutationEffect::Apply(mutation) => match mutation {
             EnemyMutations::EnemySpeed => commands.queue(commands::ApplyEnemySpeedMutation),
-            EnemyMutations::FasterMutationTimer => todo!(),
-            EnemyMutations::AttractedToTarget => todo!(),
-            EnemyMutations::RotatingContainer => todo!(),
+            EnemyMutations::FasterMutationTimer => {
+                commands.queue(commands::ApplyAttractedToTargetMutation)
+            }
+            EnemyMutations::AttractedToTarget => {
+                commands.queue(commands::ApplyFasterMutationTimerMutation)
+            }
+            EnemyMutations::RotatingContainer => {
+                commands.queue(commands::ApplyRotatingContainerMutation)
+            }
         },
         MutationEffect::Remove(mutation) => match mutation {
             EnemyMutations::EnemySpeed => commands.queue(commands::RemoveEnemySpeedMutation),
-            EnemyMutations::FasterMutationTimer => todo!(),
-            EnemyMutations::AttractedToTarget => todo!(),
-            EnemyMutations::RotatingContainer => todo!(),
+            EnemyMutations::FasterMutationTimer => {
+                commands.queue(commands::RemoveAttractedToTargetMutation)
+            }
+            EnemyMutations::AttractedToTarget => {
+                commands.queue(commands::RemoveFasterMutationTimerMutation)
+            }
+            EnemyMutations::RotatingContainer => {
+                commands.queue(commands::RemoveRotatingContainerMutation)
+            }
         },
     }
 }
@@ -138,12 +156,12 @@ fn handle_adding_or_removing_mutations(trigger: On<MutationEffect>, mut commands
 /// Mutation: the enemy is attracted to the center
 #[derive(Debug, Clone, Copy, Default, Component, Reflect)]
 #[reflect(Component)]
-pub struct EnemyAttractedToTarget;
+pub struct EnemyAttractedToTarget(pub f32);
 
-fn attract_enemy_to_center(mut enemies: Query<(Forces, &Position), With<EnemyAttractedToTarget>>) {
-    for (mut enemy, pos) in enemies.iter_mut() {
+fn attract_enemy_to_center(mut enemies: Query<(Forces, &Position, &EnemyAttractedToTarget)>) {
+    for (mut enemy, pos, attraction) in enemies.iter_mut() {
         let force_dir = -pos.0;
-        let force = force_dir.normalize_or_zero() * 750.;
+        let force = force_dir.normalize_or_zero() * attraction.0;
         enemy.apply_linear_impulse(force);
     }
 }
@@ -151,13 +169,16 @@ fn attract_enemy_to_center(mut enemies: Query<(Forces, &Position), With<EnemyAtt
 /// Mutation: the container rotates
 #[derive(Debug, Clone, Component, Default, Reflect)]
 #[reflect(Component)]
-pub struct RotatingContainer;
+pub struct RotatingContainer(pub u8);
 
 fn rotating_container(
     time: Res<Time>,
-    mut containers: Query<&mut Transform, With<RotatingContainer>>,
+    mut containers: Query<(&mut Transform, &RotatingContainer)>,
 ) {
-    for mut container in &mut containers {
+    for (mut container, rotation) in &mut containers {
+        if rotation.0 == 0 {
+            continue;
+        }
         container.rotate_axis(Dir3::Z, 0.1 * time.delta_secs());
     }
 }

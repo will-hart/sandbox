@@ -1,6 +1,13 @@
+use std::time::Duration;
+
 use bevy::prelude::*;
 
-use crate::enemy::{DEFAULT_ENEMY_SPEED, EnemySpeed};
+use crate::{
+    enemy::{DEFAULT_ENEMY_SPEED, Enemy, EnemySpeed},
+    mutations::{
+        EnemyAttractedToTarget, INITIAL_ENEMY_MUTATION_DURATION, MutationTimers, RotatingContainer,
+    },
+};
 
 /// Enemy Speed Mutation
 
@@ -36,4 +43,136 @@ impl Command for RemoveEnemySpeedMutation {
     }
 }
 
+// Attracted to Target
+
+pub const ADDITIONAL_ATTRACTION_FORCE: f32 = 750.0;
+
+pub struct ApplyAttractedToTargetMutation;
+
+impl Command for ApplyAttractedToTargetMutation {
+    type Out = ();
+
+    fn apply(self, world: &mut World) -> Self::Out {
+        let mut enemies_query =
+            world.query::<(Entity, &Enemy, Option<&mut EnemyAttractedToTarget>)>();
+        let entities_to_insert = enemies_query
+            .iter_mut(world)
+            .filter_map(|(entity, _, maybe_attraction)| {
+                let Some(mut attraction) = maybe_attraction else {
+                    return Some(entity);
+                };
+
+                attraction.0 += ADDITIONAL_ATTRACTION_FORCE;
+
+                None
+            })
+            .collect::<Vec<_>>();
+
+        for entity in &entities_to_insert {
+            world
+                .commands()
+                .entity(*entity)
+                .insert(EnemyAttractedToTarget(ADDITIONAL_ATTRACTION_FORCE));
+        }
+    }
+}
+
+pub struct RemoveAttractedToTargetMutation;
+
+impl Command for RemoveAttractedToTargetMutation {
+    type Out = ();
+
+    fn apply(self, world: &mut World) -> Self::Out {
+        let mut enemies_query = world.query::<(Entity, &Enemy, &mut EnemyAttractedToTarget)>();
+
+        let entities_to_remove = enemies_query
+            .iter_mut(world)
+            .filter_map(|(entity, _, mut attraction)| {
+                attraction.0 -= ADDITIONAL_ATTRACTION_FORCE;
+
+                if attraction.0 <= 0.0 {
+                    return Some(entity);
+                }
+
+                None
+            })
+            .collect::<Vec<_>>();
+
+        for entity in &entities_to_remove {
+            world
+                .commands()
+                .entity(*entity)
+                .remove::<EnemyAttractedToTarget>();
+        }
+    }
+}
+
 // Faster Mutation Timer
+
+pub const ADDITIONAL_MUTATION_TIMER: f32 = 1.0;
+
+pub struct ApplyFasterMutationTimerMutation;
+
+impl Command for ApplyFasterMutationTimerMutation {
+    type Out = ();
+
+    fn apply(self, world: &mut World) -> Self::Out {
+        let Some(mut timers) = world.get_resource_mut::<MutationTimers>() else {
+            warn!("Unable to find MutationTimers, aborting ApplyFasterMutationTimerMutation");
+            return;
+        };
+
+        let current_duration = (timers.enemy_mutation.duration()
+            - Duration::from_secs_f32(ADDITIONAL_MUTATION_TIMER))
+        .max(Duration::from_secs_f32(3.0));
+
+        timers.enemy_mutation.set_duration(current_duration);
+    }
+}
+
+pub struct RemoveFasterMutationTimerMutation;
+
+impl Command for RemoveFasterMutationTimerMutation {
+    type Out = ();
+
+    fn apply(self, world: &mut World) -> Self::Out {
+        let Some(mut timers) = world.get_resource_mut::<MutationTimers>() else {
+            warn!("Unable to find MutationTimers, aborting RemoveFasterMutationTimerMutation");
+            return;
+        };
+
+        let current_duration = (timers.enemy_mutation.duration()
+            + Duration::from_secs_f32(ADDITIONAL_MUTATION_TIMER))
+        .min(Duration::from_secs_f32(INITIAL_ENEMY_MUTATION_DURATION));
+
+        timers.enemy_mutation.set_duration(current_duration);
+    }
+}
+
+// Rotating container
+
+pub struct ApplyRotatingContainerMutation;
+
+impl Command for ApplyRotatingContainerMutation {
+    type Out = ();
+
+    fn apply(self, world: &mut World) -> Self::Out {
+        let mut containers_query = world.query::<&mut RotatingContainer>();
+        for mut container in containers_query.iter_mut(world) {
+            container.0 = container.0.saturating_add(1);
+        }
+    }
+}
+
+pub struct RemoveRotatingContainerMutation;
+
+impl Command for RemoveRotatingContainerMutation {
+    type Out = ();
+
+    fn apply(self, world: &mut World) -> Self::Out {
+        let mut containers_query = world.query::<&mut RotatingContainer>();
+        for mut container in containers_query.iter_mut(world) {
+            container.0 = container.0.saturating_sub(1);
+        }
+    }
+}
