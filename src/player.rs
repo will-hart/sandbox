@@ -95,13 +95,15 @@ fn position_player(mouse: Res<MouseData>, mut player: Single<&mut Transform, Wit
 
 fn collide_enemies_and_player(
     trigger: On<CollisionStart>,
+    mut next_state: ResMut<NextState<GameState>>,
     mut player_health: Single<&mut PlayerHealthCountdown>,
     enemies: Query<Entity, Or<(With<Enemy>, With<SplitEnemy>)>>,
 ) {
     if enemies.contains(trigger.collider2) {
         player_health.0 = player_health.0.saturating_sub(1);
         if player_health.0 == 0 {
-            warn!("Player dead!");
+            info!("Player dead!");
+            next_state.set(GameState::GameOver);
         }
     }
 }

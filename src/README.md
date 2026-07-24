@@ -12,7 +12,8 @@
 
 ## TODO
 
-- [ ] Player takes damage
-- [ ] JUUUIIIIICE
+- [x] Player takes damage
+  - [x] game over screen
 - [x] countdown list
 - [ ] all mutations countdown (and remove "defend" action)
+- [ ] JUUUIIIIICE

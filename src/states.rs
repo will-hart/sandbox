@@ -5,6 +5,7 @@ pub enum GameState {
     #[default]
     MainMenu,
     InGame,
+    GameOver,
 }
 
 pub(super) fn plugin(app: &mut App) {

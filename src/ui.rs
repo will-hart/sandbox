@@ -1,6 +1,10 @@
 use bevy::{
     color::palettes::css::RED,
-    feathers::{controls::FeathersButton, palette::WHITE, theme::ThemedText},
+    feathers::{
+        controls::{ButtonVariant, FeathersButton},
+        palette::WHITE,
+        theme::ThemedText,
+    },
     prelude::*,
     ui_widgets::Activate,
 };
@@ -12,6 +16,7 @@ pub(super) fn plugin(app: &mut App) {
 
     app.add_systems(OnEnter(GameState::MainMenu), menu.spawn())
         .add_systems(OnEnter(GameState::InGame), game_ui.spawn())
+        .add_systems(OnEnter(GameState::GameOver), game_over.spawn())
         .add_systems(
             Update,
             update_countdown_list.run_if(in_state(GameState::InGame)),
@@ -34,7 +39,8 @@ fn menu() -> impl Scene {
         Children [
             (
                 @FeathersButton {
-                    @caption: bsn!{ Text("Start Game") TextColor(WHITE) }
+                    @caption: bsn!{ Text("Start Game") TextColor(WHITE) },
+                    @variant: ButtonVariant::Primary
                 }
                 Node {
                     width: px(300),
@@ -43,6 +49,54 @@ fn menu() -> impl Scene {
                 BackgroundColor(RED)
                 on(|_: On<Activate>, mut next_state: ResMut<NextState<GameState>>| {
                     info!("Main menu - start game clicked");
+                    next_state.set(GameState::InGame);
+                })
+            )
+        ]
+    }
+}
+
+fn game_over() -> impl Scene {
+    info!("Spawning game over menu");
+    bsn! {
+        DespawnOnExit<GameState>(GameState::GameOver)
+        Node {
+            width: percent(100),
+            height: percent(100),
+            position_type: PositionType::Absolute,
+            top: px(0),
+            left: px(0),
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
+            row_gap: px(15)
+        }
+        Children [
+            (
+                @FeathersButton {
+                    @caption: bsn!{ Text("Try Again") TextColor(WHITE) },
+                    @variant: ButtonVariant::Primary
+                }
+                Node {
+                    width: px(300),
+                    height: px(150)
+                }
+                BackgroundColor(RED)
+                on(|_: On<Activate>, mut next_state: ResMut<NextState<GameState>>| {
+                    info!("Game Over - start game clicked");
+                    next_state.set(GameState::InGame);
+                })
+            ),
+            (
+                @FeathersButton {
+                    @caption: bsn!{ Text("Main Menu") TextColor(WHITE) }
+                }
+                Node {
+                    width: px(300),
+                    height: px(150)
+                }
+                BackgroundColor(RED)
+                on(|_: On<Activate>, mut next_state: ResMut<NextState<GameState>>| {
+                    info!("Game Over - main menu clicked");
                     next_state.set(GameState::InGame);
                 })
             )
