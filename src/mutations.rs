@@ -1,61 +1,59 @@
 use std::time::Duration;
 
-use avian2d::{
-    dynamics::rigid_body::forces::{Forces, WriteRigidBodyForces},
-    physics_transform::Position,
-};
 use bevy::prelude::*;
 
-use crate::{enemy::SplitEnemy, states::GameState};
-
-mod commands;
+use crate::states::GameState;
 
 pub const INITIAL_ENEMY_MUTATION_DURATION: f32 = 6.0;
+pub const INITIAL_ENEMY_SPAWN_TIMER: f32 = 5.0;
+pub const INITIAL_INCREASE_MUTATION_COUNT_TIMER: f32 = 25.0;
 
 pub(super) fn plugin(app: &mut App) {
     info!("Loading mutations plugin");
     app.init_resource::<MutationTimers>()
-        .add_systems(
-            OnEnter(GameState::InGame),
-            (insert_mutations_resource, reset_mutation_timers),
-        )
+        .add_systems(OnEnter(GameState::InGame), insert_mutations_resource)
         .add_systems(
             Update,
-            (
-                watch_mutation_timers,
-                attract_enemy_to_center,
-                monitor_split_enemies,
-                rotating_container,
-            )
-                .run_if(in_state(GameState::InGame)),
-        )
-        .add_observer(handle_adding_or_removing_mutations);
+            watch_mutation_timers.run_if(in_state(GameState::InGame)),
+        );
 }
 
 #[derive(Debug, Clone, Resource, Reflect)]
 #[reflect(Resource)]
 pub struct MutationTimers {
-    pub enemy_mutation: Timer,
-    pub player_attack: Timer,
+    pub change_world_mutation: Timer,
+    pub change_enemy_mutation: Timer,
+    pub increase_mutation_count: Timer,
+    pub spawn_enemy: Timer,
+    pub mutation_count: u8,
 }
 
 impl Default for MutationTimers {
     fn default() -> Self {
         Self {
-            enemy_mutation: Timer::from_seconds(
+            change_world_mutation: Timer::from_seconds(10.0, TimerMode::Repeating),
+            change_enemy_mutation: Timer::from_seconds(
                 INITIAL_ENEMY_MUTATION_DURATION,
                 TimerMode::Repeating,
             ),
-            player_attack: Timer::from_seconds(8.0, TimerMode::Repeating),
+            spawn_enemy: Timer::from_seconds(INITIAL_ENEMY_SPAWN_TIMER, TimerMode::Repeating),
+            increase_mutation_count: Timer::from_seconds(
+                INITIAL_INCREASE_MUTATION_COUNT_TIMER,
+                TimerMode::Repeating,
+            ),
+            mutation_count: 0,
         }
     }
 }
 
 impl MutationTimers {
-    pub fn tick(&mut self, amount: f32) {
+    fn tick(&mut self, amount: f32) {
         let duration = Duration::from_secs_f32(amount);
-        self.enemy_mutation.tick(duration);
-        self.player_attack.tick(duration);
+
+        self.change_enemy_mutation.tick(duration);
+        self.increase_mutation_count.tick(duration);
+        self.change_world_mutation.tick(duration);
+        self.spawn_enemy.tick(duration);
     }
 }
 
@@ -76,137 +74,55 @@ pub struct CurrentMutations {
     pub mutations: Vec<EnemyMutations>,
 }
 
-#[derive(Clone, Copy, Debug, Event)]
-pub enum MutationEffect {
-    Apply(EnemyMutations),
-    Remove(EnemyMutations),
-}
-
 fn insert_mutations_resource(mut commands: Commands) {
     commands.insert_resource(CurrentMutations::default());
 }
 
-fn reset_mutation_timers(mut timers: ResMut<MutationTimers>) {
-    timers.enemy_mutation.reset();
-    timers.player_attack.reset();
-}
-
 fn watch_mutation_timers(
-    mut commands: Commands,
     time: Res<Time>,
     mut timers: ResMut<MutationTimers>,
     mut mutations: ResMut<CurrentMutations>,
 ) {
     timers.tick(time.delta_secs());
 
-    if timers.enemy_mutation.just_finished() {
-        // pick a random mutation to add
-        if let Some(item) = fastrand::choice([
-            EnemyMutations::EnemySpeed,
-            EnemyMutations::AttractedToTarget,
-            EnemyMutations::FasterMutationTimer,
-            EnemyMutations::RotatingContainer,
-            EnemyMutations::Split,
-            EnemyMutations::Split,
-            EnemyMutations::Split,
-            EnemyMutations::Split,
-            EnemyMutations::Split,
-            EnemyMutations::Split,
-            EnemyMutations::Split,
-            EnemyMutations::Split,
-        ]) {
-            info!("Add enemy mutation - {item:?}");
-            commands.trigger(MutationEffect::Apply(item));
-            mutations.mutations.push(item);
-        }
+    if timers.change_enemy_mutation.just_finished() {
+        mutations.mutations = fastrand::choose_multiple(
+            [
+                EnemyMutations::EnemySpeed,
+                EnemyMutations::AttractedToTarget,
+                EnemyMutations::FasterMutationTimer,
+                EnemyMutations::RotatingContainer,
+                EnemyMutations::Split,
+                EnemyMutations::Split,
+                EnemyMutations::Split,
+                EnemyMutations::Split,
+                EnemyMutations::Split,
+                EnemyMutations::Split,
+                EnemyMutations::Split,
+                EnemyMutations::Split,
+            ],
+            timers.mutation_count as usize,
+        );
     }
 
-    if timers.player_attack.just_finished() {
-        if !mutations.mutations.is_empty()
-            && let Some(idx) =
-                fastrand::choice(mutations.mutations.iter().enumerate().map(|(idx, _)| idx))
-        {
-            let mutation = mutations.mutations.remove(idx);
-            info!("Remove enemy mutation - {mutation:?}");
-            commands.trigger(MutationEffect::Remove(mutation));
-        };
+    if timers.increase_mutation_count.just_finished() {
+        timers.mutation_count = timers.mutation_count.saturating_add(1);
     }
 }
 
-fn handle_adding_or_removing_mutations(trigger: On<MutationEffect>, mut commands: Commands) {
-    let event = trigger.event();
-    match event {
-        MutationEffect::Apply(mutation) => match mutation {
-            EnemyMutations::EnemySpeed => commands.queue(commands::ApplyEnemySpeedMutation),
-            EnemyMutations::FasterMutationTimer => {
-                commands.queue(commands::ApplyAttractedToTargetMutation)
-            }
-            EnemyMutations::AttractedToTarget => {
-                commands.queue(commands::ApplyFasterMutationTimerMutation)
-            }
-            EnemyMutations::RotatingContainer => {
-                commands.queue(commands::ApplyRotatingContainerMutation)
-            }
-            EnemyMutations::Split => commands.queue(commands::ApplySplitMutation),
-        },
-        MutationEffect::Remove(mutation) => match mutation {
-            EnemyMutations::EnemySpeed => commands.queue(commands::RemoveEnemySpeedMutation),
-            EnemyMutations::FasterMutationTimer => {
-                commands.queue(commands::RemoveAttractedToTargetMutation)
-            }
-            EnemyMutations::AttractedToTarget => {
-                commands.queue(commands::RemoveFasterMutationTimerMutation)
-            }
-            EnemyMutations::RotatingContainer => {
-                commands.queue(commands::RemoveRotatingContainerMutation)
-            }
-            EnemyMutations::Split => commands.queue(commands::RemoveSplitMutation),
-        },
-    }
-}
+// /// Mutation: the container rotates
+// #[derive(Debug, Clone, Component, Default, Reflect)]
+// #[reflect(Component)]
+// pub struct RotatingContainer(pub u8);
 
-/// Mutation: the enemy is attracted to the center
-#[derive(Debug, Clone, Copy, Default, Component, Reflect)]
-#[reflect(Component)]
-pub struct EnemyAttractedToTarget(pub f32);
-
-fn attract_enemy_to_center(mut enemies: Query<(Forces, &Position, &EnemyAttractedToTarget)>) {
-    for (mut enemy, pos, attraction) in enemies.iter_mut() {
-        let force_dir = -pos.0;
-        let force = force_dir.normalize_or_zero() * attraction.0;
-        enemy.apply_linear_impulse(force);
-    }
-}
-
-/// Mutation: the container rotates
-#[derive(Debug, Clone, Component, Default, Reflect)]
-#[reflect(Component)]
-pub struct RotatingContainer(pub u8);
-
-fn rotating_container(
-    time: Res<Time>,
-    mut containers: Query<(&mut Transform, &RotatingContainer)>,
-) {
-    for (mut container, rotation) in &mut containers {
-        if rotation.0 == 0 {
-            continue;
-        }
-        container.rotate_axis(Dir3::Z, 0.1 * time.delta_secs());
-    }
-}
-
-/// Mutation: monitor split enemies
-fn monitor_split_enemies(
-    mut commands: Commands,
-    time: Res<Time>,
-    mut enemies: Query<(Entity, &mut SplitEnemy)>,
-) {
-    let delta = time.delta_secs();
-    for (entity, mut enemy) in enemies.iter_mut() {
-        enemy.time_remaining -= delta;
-
-        if enemy.time_remaining <= 0. {
-            commands.entity(entity).despawn();
-        }
-    }
-}
+// fn rotating_container(
+//     time: Res<Time>,
+//     mut containers: Query<(&mut Transform, &RotatingContainer)>,
+// ) {
+//     for (mut container, rotation) in &mut containers {
+//         if rotation.0 == 0 {
+//             continue;
+//         }
+//         container.rotate_axis(Dir3::Z, 0.1 * time.delta_secs());
+//     }
+// }

@@ -7,11 +7,7 @@ use avian2d::{
 };
 use bevy::{color::palettes::css::BLACK, prelude::*};
 
-use crate::{
-    cursor::MouseData,
-    enemy::{Enemy, SplitEnemy},
-    states::GameState,
-};
+use crate::{cursor::MouseData, enemy::Enemy, states::GameState};
 
 pub(super) fn plugin(app: &mut App) {
     info!("Loading player plugin");
@@ -97,7 +93,7 @@ fn collide_enemies_and_player(
     trigger: On<CollisionStart>,
     mut next_state: ResMut<NextState<GameState>>,
     mut player_health: Single<&mut PlayerHealthCountdown>,
-    enemies: Query<Entity, Or<(With<Enemy>, With<SplitEnemy>)>>,
+    enemies: Query<Entity, With<Enemy>>,
 ) {
     if enemies.contains(trigger.collider2) {
         player_health.0 = player_health.0.saturating_sub(1);

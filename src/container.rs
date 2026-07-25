@@ -1,7 +1,7 @@
 use avian2d::{collision::collider::Collider, dynamics::rigid_body::RigidBody};
 use bevy::prelude::*;
 
-use crate::{mutations::RotatingContainer, states::GameState};
+use crate::states::GameState;
 
 pub(super) fn plugin(app: &mut App) {
     info!("Loading container plugin");
@@ -20,7 +20,6 @@ fn container() -> impl Scene {
 
     bsn! {
         Container
-        RotatingContainer
         DespawnOnExit<GameState>(GameState::InGame)
         template_value(RigidBody::Static)
         Mesh2d(asset_value(Rectangle::new(container_w, container_h).to_ring(thickness)))

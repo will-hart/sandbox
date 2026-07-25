@@ -9,7 +9,7 @@ use bevy::{
     ui_widgets::Activate,
 };
 
-use crate::{enemy::SplitEnemy, mutations::MutationTimers, states::GameState};
+use crate::{mutations::MutationTimers, states::GameState};
 
 pub(super) fn plugin(app: &mut App) {
     info!("Loading UI plugin");
@@ -157,36 +157,15 @@ fn countdown_text(value: &str) -> impl Scene {
 fn update_countdown_list(
     timers: Res<MutationTimers>,
     mut texts: Query<&mut Text, With<CountdownTimerItem>>,
-    splits: Query<&SplitEnemy>,
 ) {
     // now prepare a list of countdown items
-    let mut counters = vec![
-        (
-            format!(
-                "{}s - Mutate",
-                timers.enemy_mutation.remaining_secs().round()
-            ),
-            timers.enemy_mutation.remaining_secs(),
+    let mut counters = vec![(
+        format!(
+            "{}s - Mutate",
+            timers.change_enemy_mutation.remaining_secs().round()
         ),
-        (
-            format!(
-                "{}s - Defend",
-                timers.player_attack.remaining_secs().round()
-            ),
-            timers.player_attack.remaining_secs(),
-        ),
-    ];
-    counters.append(
-        &mut splits
-            .iter()
-            .map(|split| {
-                (
-                    format!("{}s - Fork", split.time_remaining.round()),
-                    split.time_remaining.max(0.0),
-                )
-            })
-            .collect::<Vec<_>>(),
-    );
+        timers.change_enemy_mutation.remaining_secs(),
+    )];
     counters.sort_by(|a, b| a.1.total_cmp(&b.1));
 
     for (idx, mut text) in texts.iter_mut().enumerate() {

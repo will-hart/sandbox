@@ -6,67 +6,79 @@ use avian2d::{
 };
 use bevy::prelude::*;
 
-use crate::states::GameState;
+use crate::{
+    enemy::mutated::{EnemyMutation, EnemyType},
+    states::GameState,
+};
 
 pub const DEFAULT_ENEMY_SPEED: f32 = 350.0;
+pub const DEFAULT_SHOOT_TIME: f32 = 5.0;
 
 pub(super) fn plugin(app: &mut App) {
     info!("Loading enemy plugin");
-    app.init_resource::<EnemySpeed>()
-        .add_systems(OnEnter(GameState::InGame), enemy.spawn())
+    app.add_plugins(mutated::plugin);
+
+    app.add_systems(OnEnter(GameState::InGame), enemy.spawn()) // spawn first enemy
         .add_systems(
             Update,
             normalise_enemy_velocity_by_speed.run_if(in_state(GameState::InGame)),
         );
 }
 
-#[derive(Debug, Clone, Copy, Resource, Reflect)]
-#[reflect(Resource)]
+#[derive(Debug, Clone, Copy, Component, Default, Reflect)]
+#[reflect(Component)]
 pub struct EnemySpeed(pub f32);
 
-impl Default for EnemySpeed {
-    fn default() -> Self {
-        Self(DEFAULT_ENEMY_SPEED)
-    }
+#[derive(Debug, Clone, Copy, Component, Default, Reflect)]
+#[reflect(Component)]
+pub struct EnemySplits(u8);
+
+#[derive(Debug, Clone, Copy, Component, Default, Reflect)]
+#[reflect(Component)]
+pub struct EnemyShoots {
+    period: f32,
+    time_left: f32,
 }
 
-#[derive(Debug, Clone, Copy, Default, Component, Reflect)]
-#[reflect(Component)]
-pub struct Enemy;
-
-#[derive(Debug, Clone, Copy, Component, Reflect)]
-#[reflect(Component)]
-pub struct SplitEnemy {
-    pub time_remaining: f32,
-    pub parent: Entity,
-}
-
-impl Default for SplitEnemy {
-    fn default() -> Self {
+impl EnemyShoots {
+    fn new(period: f32) -> Self {
         Self {
-            time_remaining: 5.0,
-            parent: Entity::PLACEHOLDER,
+            period,
+            time_left: period,
         }
     }
 }
 
 fn enemy() -> impl Scene {
-    let color = Srgba::new(1.7, 1.0, 1.8, 1.0);
-    let enemy_radius = 15.0;
-
     bsn! {
         Enemy
-        DespawnOnExit<GameState>(GameState::InGame)
-        Mesh2d(asset_value(Rectangle::new(enemy_radius, enemy_radius)))
-        MeshMaterial2d<ColorMaterial>(asset_value(ColorMaterial::from_color(color)))
-        template_value(RigidBody::Dynamic)
-        Collider::round_rectangle(enemy_radius, enemy_radius, 3.0)
-        AngularDamping(1.9)
-        CollisionEventsEnabled
-        Restitution {
-            coefficient: 1.0,
-            combine_rule: CoefficientCombine::Max
-        }
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct EnemyProps {
+    mutations: Vec<EnemyMutation>,
+    enemy_type: EnemyType,
+}
+
+#[derive(Debug, Clone, Copy, Default, SceneComponent, Reflect)]
+#[scene(EnemyProps)]
+pub struct Enemy;
+
+#[derive(Debug, Clone, Copy, Default, Component, Reflect)]
+#[reflect(Component)]
+pub struct HoverEnemy {
+    radius: f32,
+    theta: f32,
+}
+
+#[derive(Debug, Clone, Copy, Default, Component, Reflect)]
+#[reflect(Component)]
+pub struct BouncerEnemy;
+
+fn bouncer() -> impl Scene {
+    bsn! {
+        BouncerEnemy
         LinearVelocity(Vec2::new(150.0, -100.0))
         Transform {
             translation: Vec2 {
@@ -77,43 +89,103 @@ fn enemy() -> impl Scene {
     }
 }
 
-pub fn split_enemy(parent: Entity, translation: Vec3) -> impl Scene {
-    let color = Srgba::new(1.5, 1.2, 1.8, 1.0);
-    let enemy_radius = 10.0;
+fn hover_attacker() -> impl Scene {
+    let theta = fastrand::f32() * std::f32::consts::PI * 2.0;
+    let radius = 250.0;
+    let translation = (Vec2::from_angle(theta) * radius).extend(0.0);
 
     bsn! {
-        DespawnOnExit<GameState>(GameState::InGame)
-        SplitEnemy {
-            parent
+        HoverEnemy {
+            radius,
+            theta
         }
-        Mesh2d(asset_value(Rectangle::new(enemy_radius, enemy_radius)))
-        MeshMaterial2d<ColorMaterial>(asset_value(ColorMaterial::from_color(color)))
-        template_value(RigidBody::Dynamic)
-        Collider::round_rectangle(enemy_radius, enemy_radius, 3.0)
-        AngularDamping(1.9)
-        CollisionEventsEnabled
-        Restitution {
-            coefficient: 1.0,
-            combine_rule: CoefficientCombine::Max
-        }
-        LinearVelocity(Vec2::new(150.0, -100.0))
         Transform {
-            translation: {translation + Vec3::new(30.0, 30.0, 0.0)}
+            translation
         }
     }
 }
 
-fn normalise_enemy_velocity_by_speed(
-    speed: Res<EnemySpeed>,
-    mut enemies: Query<&mut LinearVelocity, With<Enemy>>,
-) {
-    for mut linvel in &mut enemies {
+impl Enemy {
+    pub fn scene(props: EnemyProps) -> impl Scene {
+        let color = Srgba::new(1.7, 1.0, 1.8, 1.0);
+        let enemy_radius = 15.0;
+
+        let (speed, splits, shoots) = props.mutations.iter().fold(
+            (DEFAULT_ENEMY_SPEED, 0, 0.),
+            |(speed, splits, shoots), mutation| match mutation {
+                EnemyMutation::Fast => (speed + DEFAULT_ENEMY_SPEED, splits, shoots),
+                EnemyMutation::Splits => (speed, splits + 1, shoots),
+                EnemyMutation::Shoots => (speed, splits, shoots + 1.),
+            },
+        );
+
+        let enemy_type: Box<dyn Scene> = match props.enemy_type {
+            EnemyType::HoverAttacker => Box::new(hover_attacker()),
+            EnemyType::Bouncer => Box::new(bouncer()),
+        };
+
+        let splits: Box<dyn Scene> = if splits > 0 {
+            Box::new(bsn! { EnemySplits(splits) })
+        } else {
+            Box::new(bsn! {})
+        };
+
+        let shoots: Box<dyn Scene> = if shoots > 0. {
+            Box::new(bsn! { EnemyShoots::new(DEFAULT_SHOOT_TIME / shoots) })
+        } else {
+            Box::new(bsn! {})
+        };
+
+        bsn! {
+            Enemy
+            EnemySpeed(speed)
+            enemy_type
+            splits
+            shoots
+            DespawnOnExit<GameState>(GameState::InGame)
+            Mesh2d(asset_value(Rectangle::new(enemy_radius, enemy_radius)))
+            MeshMaterial2d<ColorMaterial>(asset_value(ColorMaterial::from_color(color)))
+            template_value(RigidBody::Dynamic)
+            Collider::round_rectangle(enemy_radius, enemy_radius, 3.0)
+            AngularDamping(1.9)
+            CollisionEventsEnabled
+            Restitution {
+                coefficient: 1.0,
+                combine_rule: CoefficientCombine::Max
+            }
+        }
+    }
+}
+
+fn normalise_enemy_velocity_by_speed(mut enemies: Query<(&mut LinearVelocity, &EnemySpeed)>) {
+    for (mut linvel, speed) in &mut enemies {
         linvel.0 = linvel.0.normalize_or_zero() * speed.0;
     }
 }
 
 mod mutated {
     use bevy::prelude::*;
+
+    use crate::states::GameState;
+
+    pub(super) fn plugin(app: &mut App) {
+        info!("Loading enemy::mutated plugin");
+
+        app.add_systems(OnEnter(GameState::InGame), insert_new_mutation_state);
+    }
+
+    fn insert_new_mutation_state(mut commands: Commands) {
+        commands.insert_resource(CurrentMutation::default());
+    }
+
+    #[derive(Debug, Default, Clone, Resource, Reflect)]
+    #[reflect(Resource)]
+    pub struct CurrentMutation {
+        mutations: Vec<EnemyMutation>,
+        enemy_type: EnemyType,
+    }
+
+    impl CurrentMutation {}
 
     #[derive(Debug, Clone, Default, Component, Reflect)]
     #[reflect(Component)]
@@ -127,6 +199,6 @@ mod mutated {
     pub enum EnemyMutation {
         Fast,
         Splits,
-        Regenerates,
+        Shoots,
     }
 }
