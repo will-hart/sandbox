@@ -111,3 +111,22 @@ fn normalise_enemy_velocity_by_speed(
         linvel.0 = linvel.0.normalize_or_zero() * speed.0;
     }
 }
+
+mod mutated {
+    use bevy::prelude::*;
+
+    #[derive(Debug, Clone, Default, Component, Reflect)]
+    #[reflect(Component)]
+    pub enum EnemyType {
+        HoverAttacker,
+        #[default]
+        Bouncer,
+    }
+
+    #[derive(Debug, Clone, Copy, Reflect)]
+    pub enum EnemyMutation {
+        Fast,
+        Splits,
+        Regenerates,
+    }
+}
