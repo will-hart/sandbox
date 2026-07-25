@@ -130,23 +130,35 @@ fn game_ui() -> impl Scene {
             (
                 Text("Countdowns")
                 ThemedText
-            )
+            ),
+            countdown_text(""),
+            countdown_text(""),
+            countdown_text(""),
+            countdown_text(""),
+            countdown_text(""),
+            countdown_text(""),
+            countdown_text(""),
+            countdown_text(""),
+            countdown_text(""),
+            countdown_text(""),
         ]
+    }
+}
+
+fn countdown_text(value: &str) -> impl Scene {
+    bsn! {
+        CountdownTimerItem
+        Text(value)
+        ThemedText
     }
 }
 
 // spawn new items every frame, who cares, we rollin now
 fn update_countdown_list(
-    mut commands: Commands,
     timers: Res<MutationTimers>,
-    parent: Single<Entity, With<CountdownTimerList>>,
-    existing_items: Query<Entity, With<CountdownTimerItem>>,
+    mut texts: Query<&mut Text, With<CountdownTimerItem>>,
     splits: Query<&SplitEnemy>,
 ) {
-    for item in &existing_items {
-        commands.entity(item).despawn();
-    }
-
     // now prepare a list of countdown items
     let mut counters = vec![
         (
@@ -177,18 +189,11 @@ fn update_countdown_list(
     );
     counters.sort_by(|a, b| a.1.total_cmp(&b.1));
 
-    commands
-        .entity(*parent)
-        .queue_spawn_related_scenes::<Children>(bsn_list![{
-            counters
-                .into_iter()
-                .map(|(value, _)| {
-                    bsn! {
-                        CountdownTimerItem
-                        Text(value)
-                        ThemedText
-                    }
-                })
-                .collect::<Vec<_>>()
-        }]);
+    for (idx, mut text) in texts.iter_mut().enumerate() {
+        if let Some((val, _)) = counters.get(idx) {
+            text.0 = val.clone();
+        } else {
+            text.0 = String::new();
+        }
+    }
 }
